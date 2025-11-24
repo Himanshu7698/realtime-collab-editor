@@ -19,8 +19,13 @@ git clone <your-repo-url>
 cd <your-repo-folder>
 
 2. **Install dependencies (both frontend and backend)**:
-- npm install
+
+```bash
+npm install
 
 3. **Run the project (frontend & backend together)**:
-- npm run dev
+
+```bash
+npm run dev
+
 
