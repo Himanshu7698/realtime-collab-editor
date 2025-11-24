@@ -10,6 +10,7 @@ import { DocumentDeleteApi, MyDocumentListApi } from "../api";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { formatDateIST } from "../helper/dateFormate";
 import type { AxiosError, AxiosResponse } from "axios";
+import socket, { connectSocket } from '../socket';
 
 export default function Dashboard() {
   const [page, setPage] = useState<number>(1);
@@ -25,6 +26,18 @@ export default function Dashboard() {
     queryKey: ["get-document", page, debouncedSearch],
     queryFn: MyDocumentListApi,
   });
+
+  useEffect(() => {
+    connectSocket();
+    const handleRefetch = () => {
+      refetch();
+    };
+    socket.on("refetch", handleRefetch);
+    return () => {
+      socket.off("refetch", handleRefetch);
+      socket.disconnect();
+    };
+  }, [socket]);
 
   useEffect(() => {
     if (data) {
@@ -141,17 +154,15 @@ export default function Dashboard() {
                         {item.ownerId?._id === user_id ? (
                           <span className="badge bg-primary">Owner</span>
                         ) : item.collaborators?.length > 0 ? (
-                          item.collaborators
-                            .filter((collab: any) => collab.userId?._id === user_id)
-                            .map((collab: any) => (
-                              <span key={collab._id} className="badge bg-secondary me-1">
-                                {collab.role}
-                              </span>
-                            ))
+                          // Show last collaborator's role
+                          <span className="badge bg-secondary">
+                            {item.collaborators[item.collaborators.length - 1].role}
+                          </span>
                         ) : (
                           <span className="badge bg-secondary">No Role</span>
                         )}
                       </td>
+
 
 
                       <td>{formatDateIST(item?.updatedAt)}</td>
@@ -161,9 +172,11 @@ export default function Dashboard() {
                           <button className="bg-transparent border-0 p-0 ms-2" onClick={() => navigate(`/update/docs/${item._id}`)}>
                             <FaEdit className="h5 text-primary mb-0 cursor-pointer" />
                           </button>
-                          <button className="bg-transparent border-0 p-0 mx-2">
-                            <FaTrashCan onClick={() => mutate(item?._id)} className="h6 text-danger mb-0 cursor-pointer" />
-                          </button>
+                          {item.ownerId?._id === user_id ? (
+                            <button className="bg-transparent border-0 p-0 mx-2">
+                              <FaTrashCan onClick={() => mutate(item?._id)} className="h6 text-danger mb-0 cursor-pointer" />
+                            </button>
+                          ) : null}
                         </div>
                       </td>
                     </tr>

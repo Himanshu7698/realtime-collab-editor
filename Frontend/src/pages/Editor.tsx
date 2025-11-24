@@ -28,7 +28,6 @@ export default function Editor() {
     mutationFn: CreateDocumentApi,
     onSuccess: ({ data }: AxiosResponse) => {
       toast.success(data?.message || "Saved successfully");
-      navigate("/");
     },
     onError: ({ response }) => {
       toast.error(response?.data?.message || "Something went wrong.");

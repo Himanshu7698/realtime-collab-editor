@@ -1,6 +1,7 @@
 const Document = require("../database/models/document");
 const { createAndUpdateDocumentSchema } = require("../validations");
 const mongoose = require('mongoose');
+const { getIo } = require("../socket");
 
 exports.createDocument = async (req, res) => {
     try {
@@ -15,6 +16,12 @@ exports.createDocument = async (req, res) => {
             content: content,
             ownerId: req.user.id
         });
+
+        // Emit event to all connected clients (or filter by room/user if needed)
+        const io = getIo();
+        if (io) {
+            io.emit("refetch", { document: doc });
+        }
 
         res.status(201).json({ message: "Document created successful.", document: doc });
     } catch (err) {
@@ -69,7 +76,6 @@ exports.getMyDocuments = async (req, res) => {
     }
 };
 
-
 exports.viewDocument = async (req, res) => {
     try {
         const doc = await Document.findById(req.params.id);
@@ -96,6 +102,12 @@ exports.updateDocument = async (req, res) => {
 
         if (!doc) {
             return res.status(404).json({ message: "Document not found" });
+        }
+
+        // Emit event to all connected clients (or filter by room/user if needed)
+        const io = getIo();
+        if (io) {
+            io.emit("refetch", {});
         }
 
         res.status(200).json({
@@ -140,22 +152,16 @@ exports.addCollaborator = async (req, res) => {
                 return res.status(400).json({ message: "Invalid userId" });
             }
 
-            // Prevent duplicates
-            if (doc.collaborators.some(c => c.userId?.toString() === userid)) {
-                continue; // skip duplicate
-            }
-
             const roleMap = { 0: "owner", 1: "editor", 2: "viewer" };
+
             doc.collaborators.push({
                 userId: new mongoose.Types.ObjectId(userid),
-                role: roleMap[role] || "viewer"
+                role: roleMap[role]
             });
         }
 
         await doc.save();
         res.json({ message: "Collaborators added", doc });
-
-
     } catch (err) {
         res.status(500).json({ message: err.message });
     }

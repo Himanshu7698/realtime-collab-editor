@@ -22,7 +22,7 @@ import type {
     UpdateDocumentApiResponse,
     UpdateDocumentFormValues,
 } from "../types";
-
+import socket, { connectSocket } from '../socket';
 
 export default function Update() {
     const [content, setContent] = useState("description");
@@ -39,10 +39,22 @@ export default function Update() {
     });
 
     // Document API
-    const { data: documentViewData } = useQuery({
+    const { data: documentViewData, refetch } = useQuery({
         queryKey: ["get-document-data", id],
         queryFn: () => DocumentViewApi(id as any),
     });
+
+    useEffect(() => {
+        connectSocket();
+        const handleRefetch = () => {
+            refetch();
+        };
+        socket.on("refetch", handleRefetch);
+        return () => {
+            socket.off("refetch", handleRefetch);
+            socket.disconnect();
+        };
+    }, [socket]);
 
     // Set values after data load
 
@@ -78,12 +90,24 @@ export default function Update() {
         mutationFn: UpdateDocumentApi,
         onSuccess: ({ data }: AxiosResponse) => {
             toast.success(data?.message || "Update successfully");
-            navigate("/");
         },
         onError: ({ response }) => {
             toast.error(response?.data?.message || "Something went wrong.");
         },
     });
+
+    // useEffect(() => {
+    //     if (!id) return; // Make sure id exists
+
+    //     const interval = setInterval(() => {
+    //         UpdateDocApi({
+    //             id: String(id),
+    //             values: { title, content },
+    //         });
+    //     }, 10000); // 10000ms = 10s
+
+    //     return () => clearInterval(interval); // Cleanup on unmount
+    // }, [id, title, content]); // Re-run in
 
     const roleOptions = [
         { value: 0, label: "Viewer" },
@@ -93,7 +117,7 @@ export default function Update() {
 
     const userOptions =
         data?.data?.data
-            ?.filter((user: any) => user._id !== userId)   
+            ?.filter((user: any) => user._id !== userId)
             .map((user: any) => ({
                 value: user._id,
                 label: user.email,
@@ -117,6 +141,7 @@ export default function Update() {
                         />
                     </div>
                     <div className="d-flex gap-2">
+
                         <Button variant="secondary" onClick={() => setShowShare(true)}>
                             <FaShareAlt /> Share
                         </Button>
